@@ -192,8 +192,8 @@
   )
 )
 
-(defn -main []
-  (http-kit/run-server #'app {:port 3000 :join? false}))
+(defn -main [port]
+  (http-kit/run-server #'app {:port (Integer. port) :join? false}))
 
 
 

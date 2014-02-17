@@ -1,0 +1,1 @@
+web: java $JVM_OPTS -cp target/wsrepl-server.jar clojure.main -m wsrepl.main $PORT

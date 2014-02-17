@@ -18,4 +18,6 @@
 
   :source-paths ["src/clj"]
 
+  :uberjar-name "wsrepl-server.jar"
+
 )
