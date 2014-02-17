@@ -17,7 +17,7 @@
             [compojure.handler :as handler]
             [compojure.route :as route]
             [ring.util.response :as response]
-            [org.httpkit.server :as http-kit])
+            [ring.adapter.jetty :as jetty])
 
 
   (:require [clojure.data.json :as json])
@@ -193,7 +193,7 @@
 )
 
 (defn -main [port]
-  (http-kit/run-server #'app {:port (Integer. port) :join? false}))
+  (jetty/run-jetty app {:port (Integer. port) :join? false}))
 
 
 
