@@ -1,5 +1,5 @@
-(defproject wsrepl "0.1.0-SNAPSHOT"
-  :description    "Web Service CLJS REPL"
+(defproject cdtrepl.server "0.1.0-SNAPSHOT"
+  :description "Web for Service Chrome DevTools CLJS REPL"
   :license {
       :name "Eclipse Public License"
       :url  "http://www.eclipse.org/legal/epl-v10.html"
@@ -17,6 +17,5 @@
 
   :source-paths ["src/clj"]
 
-  :uberjar-name "wsrepl-server.jar"
-
+  :uberjar-name "cdtrepl-server.jar"
 )
