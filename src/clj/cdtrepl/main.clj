@@ -183,6 +183,7 @@
 
 (compojure/defroutes app-routes
   (compojure/POST "/compile" [:as request] (compile-handler request))
+  (compojure/GET "/status" [:as request] (response/response "OK"))
   (route/not-found "Not Found"))
  
 (def app
