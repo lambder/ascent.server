@@ -19,7 +19,7 @@
             [compojure.handler :as handler]
             [compojure.route :as route]
             [ring.util.response :as response]
-            [ring.adapter.jetty :as jetty])
+            [org.httpkit.server :as http])
 
   (:require [clojure.data.json :as json])
 
@@ -119,7 +119,7 @@
   (println (str (compile-expression  "(def a 1)" "cljs.user"))))
 
 (defn -main [port]
-  (jetty/run-jetty app {:port (Integer. port) :join? false})
+  (http/run-server app {:port (Integer. port) :join? false})
   (info "http server started on port" port))
 
 (timbre/set-config! [:appenders :standard-out] 
