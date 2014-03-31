@@ -1,4 +1,6 @@
 (ns cdtrepl.main
+  (:require [taoensso.timbre :as timbre])
+    
 	(:require [cljs.repl :as repl0])
 	(:require [cljs.repl.rhino :as rhino])
 
@@ -21,144 +23,65 @@
 
   (:require [clojure.data.json :as json])
 
-  (:import [java.io InputStreamReader])
-)
+  (:import [java.io InputStreamReader]))
 
+(timbre/refer-timbre)
 
-(defn- add-ns [nss ns-name]
-  (assoc nss ns-name {:name ns-name}))
+(defn read-expr [expr]
+  (try
+    (reader/read-string expr)
+    (catch Exception e
+        {
+          :compile-status "error"
+          :compile-message (.getMessage e)
+        })))
 
-(defn- ensure-ns [compiler ns-name]
-  (when-not (get-in @compiler [::namespaces ns-name])
-    (swap! compiler update-in [::ana/namespaces] add-ns ns-name)
-  )
-)
+(defn compile-form [form]
+  (let [env {:context :expr :locals {} :ns {:name ana/*cljs-ns*}}]
+    (let [ast (ana/analyze env form)]
+        {
+          :compile-status "ok"
+          :js-statement   (comp/emit-str ast)
+          :response-ns    ana/*cljs-ns*
+          :ns-change      (= (:op ast) :ns)
+        })))
 
-(defn- compiler-env [ns-name]
-  (ensure-ns
-    (env/default-compiler-env) ns-name)
-)
+(def warnings 
+  { :undeclared-var false
+    :undeclared-ns false
+    :undeclared-ns-form false})
 
-(defn- compile-statement [expr & {:keys [analyze-path verbose warn-on-undeclared special-fns static-fns]}]
-  (let  [
-          env {:context :expr :locals {}}
-      		read-error (Object.)
-        ]
+(defn- compile-expression [expr ns]
+  (env/with-compiler-env (env/default-compiler-env)     
+    (binding [ana/*cljs-ns* ns ana/*cljs-warnings* (merge ana/*cljs-warnings* warnings)]           
+    	(let [form (read-expr expr)]
+        (if-not (= (:compile-status form) "error")
+          (compile-form form) form)))))
 
-		(let [form 
-    				(try
-            	(binding  [
-                          *ns* (create-ns ana/*cljs-ns*)
-                       		reader/*data-readers* tags/*cljs-data-readers*
-                       		reader/*alias-map*
-                       		  (apply merge
-                            	((juxt :requires :require-macros)
-                             		(ana/get-namespace ana/*cljs-ns*)))
-                        ]
-
-
-                 			(reader/read-string expr))
-              (catch Exception e
-                {
-                  :compile-status "error"
-                  :compile-message (.getMessage e)
-                }
-              )
-            )
-    		 ]
-
-         (if-not (= (:compile-status form) "error")
-            (let [ env (assoc env :ns (ana/get-namespace ana/*cljs-ns*))
-                   ast (ana/analyze env form)]
-            
-              (let [isns (= (:op ast) :ns)]
-                (merge
-                  {
-                     :compile-status "ok"
-                     :js-statement   (comp/emit-str ast)
-                     :response-ns ana/*cljs-ns*
-                  }
-
-                  (if isns 
-                     {
-                       :ns-change true
-                     }
-                  )
-                )
-              )
-            )
-
-            form
-         )
-    )
-  )      
-)
-
-(defn- get-namespace-from-request [request]
+(defn- get-namespace [request]
   (if-let [sns (request "ns")]
-    (symbol sns)
-    'cljs.user))
-
-(defn- get-statement-from-request [request]
-  (request "clj-statement"))
-
-(defn session-compile [request]
- 	(let [warn-on-undeclared false static-fns nil ns (get-namespace-from-request request)]
-    (env/with-compiler-env (compiler-env ns)
-  			(binding [  ana/*cljs-ns* ns
-              		  ana/*cljs-warnings* 
-                        (assoc ana/*cljs-warnings*
-                            :undeclared-var warn-on-undeclared
-                            :undeclared-ns warn-on-undeclared
-                            :undeclared-ns-form warn-on-undeclared)
-              		  ana/*cljs-static-fns* static-fns]
-
-          (ensure-ns env/*compiler* ana/*cljs-ns*)
-
-          (if-let [statement (get-statement-from-request request)]
-            (compile-statement statement)
-
-            {
-              :compile-status  "error"
-              :compile-message "missing CLJS statement"   
-            }
-          )          
-    		)
-  	)
-  )		
-)
-
-(def __ns "cljs.user")
-
-
-(defn --main []
-  (println (str "js: \n---\n" (session-compile  __ns "(ns a.b.c)") "\n---\n"))
-  (println (str "js: \n---\n" (session-compile  __ns "(def a 1)") "\n---\n"))
-  (println (str "js: \n---\n" (session-compile  __ns "(def c 1)") "\n---\n"))
-
-
-  (println (str "js: \n---\n" (session-compile __ns  "(+ a a)") "\n---\n"))
-  (println (str "js: \n---\n" (session-compile __ns  "(def b 2)") "\n---\n"))
-)
-
+    (symbol sns) 'cljs.user))
 
 (defn- compile-handler [request]
-  (let [request (json/read (InputStreamReader. (:body request)))]
-      
-   ; (println (str "statement: " statement " ns: " ns))
-    (->
-
-      (let [response (json/write-str (session-compile request))]
-        (println "response: " response)
-        (response/response response)
-      )
-
-      
-      (response/content-type "application/json")
-    )
-  )
-)
-
+  (->       
+    (let [request-json (json/read (InputStreamReader. (:body request))) ns (get-namespace request)]
+      (if-let [expression (request-json "clj-statement")]
+        (do
+          (debug "request:" request-json)
+          (let [compiled (compile-expression expression ns)]
+            (debug "response:" compiled)
+            compiled
+          ))
+        (do
+          (error "invalid request (no statement):" request)
+          {
+            :compile-status  "error"
+            :compile-message "missing CLJS expression"   
+          })))
+   
+    (json/write-str)
+    (response/response)
+    (response/content-type "application/json")))
 
 (defn- cors-headers [response]
   (let [headers "Content-Type"]
@@ -167,19 +90,13 @@
       (response/header "Access-Control-Allow-Headers", headers)
       (response/header "Access-Control-Allow-Origin", "*")
       (response/header "Access-Control-Expose-Headers", headers)
-      (response/header "Access-Control-Request-Headers", headers)
-    )
-  )
-)
+      (response/header "Access-Control-Request-Headers", headers))))
 
 (defn cors-preflight [handler]
   (fn [request]
     (if  (= (:request-method request) :options)
       (cors-headers (response/response ""))
-      (cors-headers (handler request))
-    )
-  )
-)
+      (cors-headers (handler request)))))
 
 (compojure/defroutes app-routes
   (compojure/POST "/compile" [:as request] (compile-handler request))
@@ -188,9 +105,11 @@
  
 (def app
   (-> (handler/site app-routes) 
-      (cors-preflight)
-  )
-)
+    (cors-preflight)))
+
+(defn --main []
+  (println (str (compile-expression  "(ns a.b.c)" "cljs.user")))
+  (println (str (compile-expression  "(def a 1)" "cljs.user"))))
 
 (defn -main [port]
   (jetty/run-jetty app {:port (Integer. port) :join? false}))

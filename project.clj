@@ -11,6 +11,7 @@
   	[org.clojure/clojure "1.5.1"]
     [org.clojure/clojurescript "0.0-2156"]
     [ring/ring-jetty-adapter "1.1.6"]
+    [com.taoensso/timbre "3.1.6"] 
     [compojure "1.1.6"]
   	[org.clojure/data.json "0.2.4"]]
 
