@@ -7,7 +7,7 @@
   (:require [clojure.pprint :as pp])
 
 	(:require 
-			[clojure.string :as string]
+		      	[clojure.string :as string]
             [clojure.java.io :as io]
             [cljs.compiler :as comp]
             [cljs.analyzer :as ana]
@@ -51,11 +51,15 @@
     :undeclared-ns false
     :undeclared-ns-form false})
 
+
+(defn error? [m]
+  (= (:compile-status m) "error"))
+
 (defn- compile-expression [expr ns]
   (env/with-compiler-env (env/default-compiler-env)     
     (binding [ana/*cljs-ns* ns ana/*cljs-warnings* (merge ana/*cljs-warnings* warnings)]           
     	(let [form (read-expr expr)]
-        (if-not (= (:compile-status form) "error")
+        (if-not (error? form)
           (compile-form form) form)))))
 
 (defn- get-namespace [request]
@@ -67,9 +71,12 @@
     (let [request-json (json/read (InputStreamReader. (:body request))) ns (get-namespace request)]
       (if-let [expression (request-json "clj-statement")]
         (do
-          (debug "request:" request-json)
+          (info "request:" request-json)
           (let [compiled (compile-expression expression ns)]
-            (debug "response:" compiled)
+            (if (error? compiled)   
+              (warn "response:" compiled)
+              (info "response:" compiled))
+            
             compiled
           ))
         (do
@@ -112,7 +119,24 @@
   (println (str (compile-expression  "(def a 1)" "cljs.user"))))
 
 (defn -main [port]
-  (jetty/run-jetty app {:port (Integer. port) :join? false}))
+  (jetty/run-jetty app {:port (Integer. port) :join? false})
+  (info "http server started on port" port))
+
+(timbre/set-config! [:appenders :standard-out] 
+  {
+    :min-level nil 
+    :enabled? true 
+    :async? false :rate-limit nil
+    :fn  
+      (fn [{:keys [output]}] 
+        (binding [*out* *err*] 
+          (timbre/str-println output)))})
+
+(timbre/set-config! [:fmt-output-fn]
+  (fn [{:keys [level throwable message timestamp hostname ns]}]
+    (format "[%s] %s - %s" ns (string/upper-case (name level)) message)))
+
+
 
 
 
