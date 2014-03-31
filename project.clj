@@ -14,8 +14,8 @@
   :dependencies [
   	[org.clojure/clojure "1.5.1"]
     [org.clojure/clojurescript "0.0-2156"]
-    [http-kit "2.1.16"]
-    [ring "1.2.1"] 
+    [http-kit "2.1.18"]
+    [ring "1.2.2"] 
     [com.taoensso/timbre "3.1.6"] 
     [compojure "1.1.6"]
   	[org.clojure/data.json "0.2.4"]]
