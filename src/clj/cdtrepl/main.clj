@@ -9,6 +9,8 @@
 	(:require 
 		      	[clojure.string :as string]
             [clojure.java.io :as io]
+            [clojure.core.async :as async :refer [go alt! go-loop]]
+            [chord.http-kit :as chord]
             [cljs.compiler :as comp]
             [cljs.analyzer :as ana]
             [cljs.tagged-literals :as tags]
@@ -63,8 +65,8 @@
           (compile-form form) form)))))
 
 (defn- get-namespace [request]
-  (if-let [sns (request "ns")]
-    (symbol sns) 'cljs.user))
+  (symbol (or (request "ns") (request :ns) "cljs.user")))
+    
 
 (defn- compile-handler [request]
   (->       
@@ -105,7 +107,23 @@
       (cors-headers (response/response ""))
       (cors-headers (handler request)))))
 
+(defn ws-handler [request]
+  (chord/with-channel request channel
+    (go-loop [] 
+      (let [message (<! channel)] 
+        (when message
+          (info "message from the client:" message)    
+              
+          (let [message (:message message) result (compile-expression (:clj-statement message) (get-namespace message))]   
+            (info "message to client:" result)
+            (>! channel (merge message result)))
+          
+          (recur)
+        )
+        ))))
+
 (compojure/defroutes app-routes
+  (compojure/GET  "/ws" [] ws-handler)
   (compojure/POST "/compile" [:as request] (compile-handler request))
   (compojure/GET "/status" [:as request] (response/response "OK"))
   (route/not-found "Not Found"))
