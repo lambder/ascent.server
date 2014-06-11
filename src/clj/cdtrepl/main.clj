@@ -5,6 +5,8 @@
 	(:require [cljs.repl.rhino :as rhino])
 
   (:require [clojure.pprint :as pp])
+  
+  (:require [cdtrepl.nswatch :as nswatch])
 
 	(:require 
 		      	[clojure.string :as string]
@@ -107,20 +109,33 @@
       (cors-headers (response/response ""))
       (cors-headers (handler request)))))
 
+
+
+(defmulti handle :type)
+
+(defmethod handle "compile" [message]
+  (let [result (compile-expression (:clj-statement message) (get-namespace message))]   
+    (info "message to client:" result)
+    (assoc (merge message result) :type "compile-result")))
+
+(defmethod handle nil [message]
+  (error "no handler for message" message)
+  {:error "no handler for message" :message message})
+
 (defn ws-handler [request]
   (chord/with-channel request channel
-    (go-loop [] 
-      (let [message (<! channel)] 
-        (when message
-          (info "message from the client:" message)    
-              
-          (let [message (:message message) result (compile-expression (:clj-statement message) (get-namespace message))]   
-            (info "message to client:" result)
-            (>! channel (merge message result)))
-          
-          (recur)
-        )
-        ))))
+    (let [watch (nswatch/watch "/Users/aav/Desktop/Projects/ascent/ascent.big/static/js/compiled" channel)]                      
+      (go-loop [] 
+        (if-let [message (<! channel)] 
+          (do
+            (info "request:" message)    
+            
+            (let [result (handle (:message message))]
+              (info "response:" result)
+              (>! channel result))
+            
+            (recur)))
+          (nswatch/close! watch)))))
 
 (compojure/defroutes app-routes
   (compojure/GET  "/ws" [] ws-handler)
