@@ -1,12 +1,15 @@
-(ns cdtrepl.nswatch
+(ns ascent.nswatch
   (:require 
-    [taoensso.timbre :as timbre]
-    [clojure.core.async :as async :refer [go alt! go-loop]])
+    [clojure.core.async :as async :refer [go alt! go-loop]]
+    [leiningen.core.main :refer [debug info]])
 
   (:import 
     (java.nio.file WatchService Paths FileSystems StandardWatchEventKinds)))
 
-(timbre/refer-timbre)
+(defn error [& params]
+  (apply info params))
+
+(def warn error)
 
 (defprotocol IWatcher
   (close! [_]))
@@ -51,7 +54,7 @@
               (let [path (.resolve (.watchable key) (.context event)) file (.toFile path) file-name (str file)]
                 (when (.endsWith file-name ".js")
                   (when-let [ns (get-ns file)]
-                    (info "namespace updated: " ns)
+                    (debug "namespace updated: " ns)
                     (async/put! ch {:type "ns-change" :ns ns})
                     
                     ))))  
@@ -63,6 +66,6 @@
         IWatcher
           (close! [_] 
             (debug "watching stopped")
-            (.close watch-service)))))0
+            (.close watch-service)))))
 
 

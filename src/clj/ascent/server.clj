@@ -1,12 +1,12 @@
-(ns cdtrepl.main
-  (:require [taoensso.timbre :as timbre])
-    
+(ns ascent.server
 	(:require [cljs.repl :as repl0])
 	(:require [cljs.repl.rhino :as rhino])
 
   (:require [clojure.pprint :as pp])
   
-  (:require [cdtrepl.nswatch :as nswatch])
+  (:require [ascent.nswatch :as nswatch])
+  
+  (:require [leiningen.core.main :refer [debug info]])
 
 	(:require 
 		      	[clojure.string :as string]
@@ -29,7 +29,11 @@
 
   (:import [java.io InputStreamReader]))
 
-(timbre/refer-timbre)
+
+(defn error [& params]
+  (apply info params))
+
+(def warn error)
 
 (defn read-expr [expr]
   (try
@@ -78,7 +82,7 @@
           (info "request:" request-json)
           (let [compiled (compile-expression expression ns)]
             (if (error? compiled)   
-              (warn "response:" compiled)
+              (info "response:" compiled)
               (info "response:" compiled))
             
             compiled
@@ -124,18 +128,20 @@
 
 (defn ws-handler [request]
   (chord/with-channel request channel
-    (let [watch (nswatch/watch "/Users/aav/Desktop/Projects/ascent/ascent.big/static/js/compiled" channel)]                      
-      (go-loop [] 
-        (if-let [message (<! channel)] 
-          (do
-            (info "request:" message)    
-            
-            (let [result (handle (:message message))]
-              (info "response:" result)
-              (>! channel result))
-            
-            (recur)))
-          (nswatch/close! watch)))))
+    (let [watch-path (get-in request [:ascent-options :watch-path])]
+      (let [watch (if watch-path (nswatch/watch watch-path channel))]                      
+        (go-loop [] 
+          (if-let [message (<! channel)] 
+            (do
+              (info "request:" message)    
+              
+              (let [result (handle (:message message))]
+                (info "response:" result)
+                (>! channel result))
+              
+              (recur)))
+            (when watch-path
+              (nswatch/close! watch)))))))
 
 (compojure/defroutes app-routes
   (compojure/GET  "/ws" [] ws-handler)
@@ -143,31 +149,29 @@
   (compojure/GET "/status" [:as request] (response/response "OK"))
   (route/not-found "Not Found"))
  
-(def app
-  (-> (handler/site app-routes) 
+(defn assoc-options [handler options]
+  (fn [request]
+    (handler (assoc request :ascent-options options)))) 
+ 
+(defn app [options]
+  (-> 
+    (handler/site app-routes) 
+    (assoc-options options)
     (cors-preflight)))
 
 (defn --main []
   (println (str (compile-expression  "(ns a.b.c)" "cljs.user")))
   (println (str (compile-expression  "(def a 1)" "cljs.user"))))
 
+(defn run [{:keys [port watch-path] :as options}]
+  (http/run-server 
+    (app 
+      {:watch-path watch-path})
+      {:port port}))
+
 (defn -main [port]
-  (http/run-server app {:port (Integer. port) :join? false})
+  (run  {:port (Integer. port)})
   (info "http server started on port" port))
-
-(timbre/set-config! [:appenders :standard-out] 
-  {
-    :min-level nil 
-    :enabled? true 
-    :async? false :rate-limit nil
-    :fn  
-      (fn [{:keys [output]}] 
-        (binding [*out* *err*] 
-          (timbre/str-println output)))})
-
-(timbre/set-config! [:fmt-output-fn]
-  (fn [{:keys [level throwable message timestamp hostname ns]}]
-    (format "[%s] %s - %s" ns (string/upper-case (name level)) message)))
 
 
 
