@@ -21,10 +21,14 @@
         (info "cannot select build configuration, namespace update notification will be disabled") nil))))
 
 (defn ascent [project & options]
-  (let [{:keys [port] :as options} (prepare-options options)]
+  (let [{:keys [port ns-updates] :as options} (prepare-options options)]
     (if port 
       (do
-        (server/run {:port (Integer. port) :watch-path (extract-watch-path project "dev")})
+        (server/run { :port (Integer. port)
+                      :watch-path 
+                        (if ns-updates
+                          (extract-watch-path project "dev"))})
+        
         (info "ascent server started at port:" port)
         (loop []
           (java.lang.Thread/sleep Long/MAX_VALUE) (recur)))
