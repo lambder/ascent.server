@@ -35,7 +35,8 @@
 (defn watch [base ch]
   (info "recursively watching " base)
   
-  (let [watch-service (.. FileSystems getDefault newWatchService) mods (into-array (modifiers))
+  (let [watch-service (.. FileSystems getDefault newWatchService) 
+        mods (into-array java.nio.file.WatchEvent$Modifier (modifiers))
         watch-keys 
           (doall
             (map 
