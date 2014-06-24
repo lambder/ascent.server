@@ -18,9 +18,20 @@
     [org.clojure/core.async "0.1.267.0-0d7780-alpha"]
     [ring "1.2.2"] 
     [compojure "1.1.6"]
-  	[org.clojure/data.json "0.2.4"]]
+  	[org.clojure/data.json "0.2.4"]
+    ]
 
   :source-paths ["src/clj"]
   
-  :eval-in-leiningen true
+  :profiles {
+    :production {
+      :dependencies [
+        [leiningen "2.3.4"]
+      ]
+    }
+    
+    :default {
+    :eval-in-leiningen true
+   }
+  }
 )
