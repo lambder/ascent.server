@@ -25,9 +25,7 @@
           (second (line-seq reader)))]
     (second (first (re-seq #"^goog\.provide\('(.*)'\);$" line)))))
   
-  
-  (System/getProperty "os.name")
-
+ 
 (defn modifiers []
   (if (.contains (System/getProperty "os.name") "OS X")
     (do
