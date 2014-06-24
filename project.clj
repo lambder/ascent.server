@@ -1,5 +1,5 @@
-(defproject ascent.server "0.2.0-SNAPSHOT"
-  :description "Tool Server for ascent.io"
+(defproject ascent/server "0.2.0-SNAPSHOT"
+  :description "Tool Server for ascent project"
   :license {
       :name "Eclipse Public License"
       :url  "http://www.eclipse.org/legal/epl-v10.html"
