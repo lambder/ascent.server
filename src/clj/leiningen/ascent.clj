@@ -1,6 +1,6 @@
 (ns leiningen.ascent
   (:require 
-    [leiningen.core.main :refer [debug info]]
+    [leiningen.core.main :refer [debug info abort]]
     [ascent.server :as server]))
 
 (defn prepare-options [options]
@@ -21,16 +21,15 @@
         (info "cannot select build configuration, namespace update notification will be disabled") nil))))
 
 (defn ascent [project & options]
-  (let [{:keys [port ns-updates] :as options} (prepare-options options)]
+  (let [{:keys [port ns-updates] :as options} (prepare-options options)
+        watch-path (if ns-updates (extract-watch-path project "dev"))]
     (if port 
       (do
         (server/run { :port (Integer. port)
-                      :watch-path 
-                        (if ns-updates
-                          (extract-watch-path project "dev"))})
-        
-        (info "ascent server started at port:" port)
+                      :watch-path watch-path })
+        (info "ascent server started at port:" port "watching:" watch-path)
+
         (loop []
           (java.lang.Thread/sleep Long/MAX_VALUE) (recur)))
       
-      (info "required :port parameter is not specified"))))
+      (abort "required :port parameter is not specified"))))
