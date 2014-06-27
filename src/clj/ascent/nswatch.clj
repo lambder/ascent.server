@@ -33,7 +33,7 @@
       [com.sun.nio.file.SensitivityWatchEventModifier/HIGH]) []))
   
 (defn watch [base ch]
-  (info "recursively watching " base)
+  (info "recursively watching directory:" base)
   
   (let [watch-service (.. FileSystems getDefault newWatchService) 
         mods (into-array java.nio.file.WatchEvent$Modifier (modifiers))
@@ -51,6 +51,7 @@
           (let [key (.take watch-service)]
             (doseq [event (.pollEvents key)]
               (let [path (.resolve (.watchable key) (.context event)) file (.toFile path) file-name (str file)]
+                (debug "file changed: " file-name)
                 (when (.endsWith file-name ".js")
                   (when-let [ns (get-ns file)]
                     (debug "namespace updated: " ns)
