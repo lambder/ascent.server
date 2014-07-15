@@ -24,14 +24,23 @@
   :source-paths ["src/clj"]
   
   :profiles {
+
+    :default {
+      :eval-in-leiningen true
+    }
+
+    ;; used to start on Heroku
     :production {
       :dependencies [
         [leiningen "2.3.4"]
       ]
     }
-    
-    :default {
-    :eval-in-leiningen true
-   }
+
+    ;; used to start REPL
+    :nrepl {
+      :dependencies [
+        [org.clojure/tools.nrepl "0.2.3"]
+      ]
+    }
   }
 )
