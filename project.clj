@@ -32,7 +32,7 @@
     ;; used to start on Heroku
     :production {
       :dependencies [
-        [leiningen "2.3.4"]
+        [leiningen "2.4.2"]
       ]
     }
 
@@ -40,6 +40,7 @@
     :nrepl {
       :dependencies [
         [org.clojure/tools.nrepl "0.2.3"]
+        [leiningen "2.4.2"]        
       ]
     }
   }
