@@ -128,8 +128,9 @@
 
 (defn ws-handler [request]
   (chord/with-channel request channel
-    (let [watch-path (get-in request [:ascent-options :watch-path])]
-      (let [watch (if watch-path (nswatch/watch watch-path channel))]                      
+    (let [
+      watch-path (get-in request [:ascent-options :watch-path])
+      watch (if watch-path (nswatch/watch watch-path channel))]
         (go-loop [] 
           (if-let [message (<! channel)] 
             (do
@@ -141,7 +142,7 @@
               
               (recur)))
             (when watch-path
-              (nswatch/close! watch)))))))
+              (nswatch/close! watch))))))
 
 (compojure/defroutes app-routes
   (compojure/GET  "/ws" [] ws-handler)
